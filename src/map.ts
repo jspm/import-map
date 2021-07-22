@@ -175,7 +175,7 @@ export class ImportMap {
       const scopeOrigin = scopeUrl.protocol + '//' + scopeUrl.hostname + (scopeUrl.port ? ':' + scopeUrl.port : '') + '/';
       const scopeBaseUrl = scopeBaseOrigin[scopeOrigin]!;
 
-      let scopeBase = this.scopes[scopeBaseUrl] || {};
+      let scopeBase = this.scopes[scopeBaseUrl] || scopeUrl.protocol !== 'file:' && {};
       if (scopeBase === scopeImports) scopeBase = null;
 
       let flattenedAll = true;
