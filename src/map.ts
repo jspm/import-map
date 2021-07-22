@@ -76,7 +76,8 @@ export class ImportMap {
     if (typeof mapBaseUrl === 'string')
       mapBaseUrl = new URL(mapBaseUrl);
     this.baseUrl = mapBaseUrl;
-    this.extend(initialMap, true);
+    if (initialMap)
+      this.extend(initialMap, true);
   }
 
   clone () {
