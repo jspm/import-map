@@ -14,7 +14,9 @@ export interface IConditionalImportMap {
     };
 }
 export declare class ImportMap {
-    #private;
+    imports: Record<string, string | ConditionalTarget | null>;
+    scopes: Record<string, Record<string, string | ConditionalTarget | null>>;
+    baseUrl: URL;
     constructor(mapBaseUrl: string | URL, initialMap?: IConditionalImportMap);
     clone(): ImportMap;
     extend(map: IImportMap | IConditionalImportMap, overrideScopes?: boolean): this;
