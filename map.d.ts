@@ -33,6 +33,8 @@ export declare class ImportMap {
     resolve(specifier: string, parentUrl?: URL | string, env?: string[] | EnvConstraints): string | ConditionalTarget | null;
     toJSON(): any;
 }
+export declare function getScopeMatches(parentUrl: URL, scopes: Record<string, Record<string, string | ConditionalTarget | null>>, baseUrl: URL): [string, string][];
+export declare function getMapMatch<T = any>(specifier: string, map: Record<string, T>): string | undefined;
 export declare type EnvConstraints = {
     include?: string[];
     exclude?: string[];

@@ -307,7 +307,7 @@ export class ImportMap {
   }
 }
 
-function getScopeMatches (parentUrl: URL, scopes: Record<string, Record<string, string | ConditionalTarget | null>>, baseUrl: URL): [string, string][] {
+export function getScopeMatches (parentUrl: URL, scopes: Record<string, Record<string, string | ConditionalTarget | null>>, baseUrl: URL): [string, string][] {
   const parentUrlHref = parentUrl.href;
 
   let scopeCandidates = Object.keys(scopes).map(scope => [scope, new URL(scope, baseUrl).href]);
@@ -318,7 +318,7 @@ function getScopeMatches (parentUrl: URL, scopes: Record<string, Record<string, 
   }) as [string, string][];
 }
 
-function getMapMatch<T = any> (specifier: string, map: Record<string, T>): string | undefined {
+export function getMapMatch<T = any> (specifier: string, map: Record<string, T>): string | undefined {
   if (specifier in map) return specifier;
   let curMatch;
   for (const match of Object.keys(map)) {
