@@ -1,5 +1,5 @@
 import { strictEqual, deepStrictEqual } from 'assert';
-import { resolveConditional, ImportMap } from '@jspm/import-map';
+import { resolveConditional, ImportMap } from 'import-map';
 
 function conditionEquals (actual, expected) {
   deepStrictEqual(actual, expected);
