@@ -206,34 +206,52 @@ export class ImportMap {
     const oldBaseUrl = this.baseUrl;
     this.baseUrl = new URL(newBaseUrl, this.baseUrl);
     if (!this.baseUrl.pathname.endsWith('/')) this.baseUrl.pathname += '/';
+    let changedImportProps = false;
     for (const impt of Object.keys(this.imports)) {
       replaceTarget(this.imports, impt, target => {
         if (target !== null)
           return relativeUrl(new URL(target, oldBaseUrl), this.baseUrl, abs);
       });
-    }
-    for (const scope of Object.keys(this.scopes)) {
-      const newScope = relativeUrl(new URL(scope, oldBaseUrl), this.baseUrl, abs);
-      const scopeImports = this.scopes[scope];
-      if (scope !== newScope) {
-        delete this.scopes[scope];
-        this.scopes[newScope] = scopeImports;
-      }
-      for (let name of Object.keys(scopeImports)) {
-        if (!isPlain(name)) {
-          const urlName = relativeUrl(new URL(name, oldBaseUrl), this.baseUrl, abs);
-          if (urlName !== name) {
-            scopeImports[urlName] = scopeImports[name];
-            delete scopeImports[name];
-          }
-          name = urlName;
+      if (!isPlain(impt)) {
+        const newImpt = relativeUrl(new URL(impt, oldBaseUrl), this.baseUrl, abs);
+        if (newImpt !== impt) {
+          changedImportProps = true;
+          this.imports[newImpt] = this.imports[impt];
+          delete this.imports[impt];
         }
+      }
+    }
+    if (changedImportProps)
+      this.imports = alphabetize(this.imports);
+    let changedScopeProps = false;
+    for (const scope of Object.keys(this.scopes)) {
+      const scopeImports = this.scopes[scope];
+      let changedScopeImportProps = false;
+      for (let name of Object.keys(scopeImports)) {
         replaceTarget(scopeImports, name, target => {
           if (target !== null)
             return relativeUrl(new URL(target, oldBaseUrl), this.baseUrl, abs);
         });
+        if (!isPlain(name)) {
+          const newName = relativeUrl(new URL(name, oldBaseUrl), this.baseUrl, abs);
+          if (newName !== name) {
+            changedScopeImportProps = true;
+            scopeImports[newName] = scopeImports[name];
+            delete scopeImports[name];
+          }
+        }
+      }
+      if (changedScopeImportProps)
+        this.scopes[scope] = alphabetize(scopeImports);
+      const newScope = relativeUrl(new URL(scope, oldBaseUrl), this.baseUrl, abs);
+      if (scope !== newScope) {
+        changedScopeProps = true;
+        delete this.scopes[scope];
+        this.scopes[newScope] = scopeImports;
       }
     }
+    if (changedScopeProps)
+      this.scopes = alphabetize(this.scopes);
     return this;
   }
 

@@ -91,7 +91,7 @@ const tests = {
     });
   },
 
-  async resolveConditional () {
+  resolveConditional () {
     // basic example
     conditionEquals(resolveConditional({
       default: './default',
@@ -111,7 +111,7 @@ const tests = {
     conditionEquals(resolveConditional({ b: { b: './b' }, a: { b: './b', a: './a' }, c: './c', d: './d' }, { exclude: ['b'], covers: [['a', 'b', 'c']] }), { a: './a', c: './c' });
   },
 
-  async resolveMap () {
+  resolveMap () {
 
     const baseUrl = 'https://site.com/';
     const map = new ImportMap(baseUrl, {
@@ -130,6 +130,34 @@ const tests = {
     strictEqual(map.resolve('/url.js', 'https://another.com/'), 'https://site.com/url-map.js');
     strictEqual(map.resolve('https://site.com/url.js', 'https://another.com/x'), 'https://site.com/scoped-map.js');
     strictEqual(map.resolve('https://another.com/url.js', baseUrl), 'https://site.com/url-map.js');
+  },
+
+  rebaseMap () {
+    const baseUrl = 'https://site.com/';
+    const map = new ImportMap(baseUrl, {
+      imports: {
+        '/some': '/another',
+        'https://another.com/x': '/y'
+      },
+      scopes: {
+        'https://another.com/': {
+          '/url.js': '/scoped-map.js',
+        }
+      }
+    });
+
+    map.rebase('https://another.com/');
+    deepStrictEqual(map.toJSON(), {
+      imports: {
+        './x': 'https://site.com/y',
+        'https://site.com/some': 'https://site.com/another'
+      },
+      scopes: {
+        './': {
+          'https://site.com/url.js': 'https://site.com/scoped-map.js',
+        }
+      }
+    });
   }
 };
 
