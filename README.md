@@ -120,7 +120,7 @@ console.log(JSON.stringify(map.toJSON(), null, 2));
 
 ## API
 
-See [map.d.ts](blob/main/map.d.ts).
+See [map.d.ts](https://github.com/jspm/import-map/blob/main/map.d.ts).
 
 Support is also provided for conditional maps supporting a way to manage generic maps for multiple environment targets, before serializing or resolving for exact environment targets.
 
