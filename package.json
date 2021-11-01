@@ -9,11 +9,14 @@
     "tsc:watch": "tsc -p . --watch",
     "rollup": "rollup -c",
     "build": "npm run tsc && npm run rollup && cp lib/map.d.ts .",
-    "test": "node --conditions test --enable-source-maps test/test.js",
+    "test": "node --conditions source --enable-source-maps test/test.js",
     "test:build": "node --enable-source-maps test/test.js"
   },
   "type": "module",
-  "exports": "./dist/map.js",
+  "exports": {
+    "source": "./lib/map.js",
+    "default": "./dist/map.js"
+  },
   "files": [
     "dist",
     "map.d.ts"
