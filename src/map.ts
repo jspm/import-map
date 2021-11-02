@@ -181,8 +181,9 @@ export class ImportMap {
       const scopeUrl = new URL(scope, this.baseUrl);
 
       let scopeBaseUrl: string;
-      if (scopeUrl.protocol === this.baseUrl.protocol && scopeUrl.hostname === this.baseUrl.hostname && scopeUrl.port === this.baseUrl.port)
-        scopeBaseUrl = rebase(this.baseUrl, mapRoot, absRoot);
+      if (scopeUrl.protocol === this.baseUrl.protocol && scopeUrl.hostname === this.baseUrl.hostname && scopeUrl.port === this.baseUrl.port) {
+        scopeBaseUrl = rebase(scopeUrl.href.startsWith(mapRoot.href) ? this.baseUrl : scopeUrl, mapRoot, absRoot);
+      }
       else
         scopeBaseUrl = scopeUrl.protocol + '//' + scopeUrl.hostname + (scopeUrl.port ? ':' + scopeUrl.port : '') + '/';
 
