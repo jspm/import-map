@@ -33,14 +33,19 @@ function matchesRoot (url: URL, baseUrl: URL) {
   return url.protocol === baseUrl.protocol && url.host === baseUrl.host && url.port === baseUrl.port && url.username === baseUrl.username && url.password === baseUrl.password;
 }
 
-export function relativeUrl (url: URL, baseUrl: URL, absolute = false) {
+export function rebase (url: URL, baseUrl = new URL('/', url), outBase: boolean | string = false) {
+  if (typeof outBase === 'boolean')
+    outBase = outBase ? '/' : './';
+  else if (!outBase.endsWith('/'))
+    outBase += '/';
+  baseUrl.search = baseUrl.hash = '';
+  if (!baseUrl.pathname.endsWith('/'))
+    baseUrl.pathname += '/';
   const href = url.href;
-  const baseUrlHref = baseUrl.href;
-  if (href.startsWith(baseUrlHref))
-    return (absolute ? '/' : './') + href.slice(baseUrlHref.length);
+  const baseHref = baseUrl.href;
+  if (href.startsWith(baseHref))
+    return outBase + href.slice(baseHref.length);
   if (!matchesRoot(url, baseUrl))
-    return url.href;
-  if (absolute)
     return url.href;
   const baseUrlPath = baseUrl.pathname;
   const urlPath = url.pathname;

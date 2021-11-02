@@ -1,4 +1,4 @@
-import { relativeUrl, isPlain, isURL } from "./common/url.js";
+import { rebase, isPlain, isURL } from "./common/url.js";
 import { alphabetize } from "./common/alphabetize.js";
 
 export interface ConditionalTarget {
@@ -118,7 +118,7 @@ export class ImportMap {
     const replaceSubpaths = url.endsWith('/');
     if (!isURL(url))
       throw new Error('URL remapping only supports URLs');
-    const newRelPkgUrl = relativeUrl(new URL(newUrl), this.baseUrl);
+    const newRelPkgUrl = rebase(new URL(newUrl), this.baseUrl);
     for (const impt of Object.keys(this.imports)) {
       replaceTarget(this.imports, impt, target => {
         if (target === null) return;
@@ -150,32 +150,43 @@ export class ImportMap {
 
   }
 
-  flatten () {
-    const scopeBaseOrigin: Record<string, string> = {};
-    for (const scope of Object.keys(this.scopes)) {
-      const scopeUrl = new URL(scope, this.baseUrl);
-      const scopeOrigin = scopeUrl.protocol + '//' + scopeUrl.hostname + (scopeUrl.port ? ':' + scopeUrl.port : '') + '/';
-      if (!scopeBaseOrigin[scopeOrigin]) {
-        scopeBaseOrigin[scopeOrigin] = scopeUrl.href;
-        continue;
-      }
-      if (scopeUrl.href.startsWith(scopeBaseOrigin[scopeOrigin]))
-        continue;
-      const curScopeBaseParts = scopeBaseOrigin[scopeOrigin].slice(scopeOrigin.length).split('/');
-      const scopeParts = scopeUrl.href.slice(scopeOrigin.length).split('/');
-      let i = 0;
-      while (scopeParts[i] === curScopeBaseParts[i])
-        i++;
-      scopeBaseOrigin[scopeOrigin] = scopeOrigin + scopeParts.slice(0, i).join('/') + (i > 0 ? '/' : '');
-    }
+  /**
+   * Groups the import map scopes to shared URLs to reduce duplicate mappings.
+   * 
+   * @param mapRoot {URL}
+   * @param absRoot {string|boolean}
+   * 
+   * For two given scopes, "https://site.com/x/" and "https://site.com/y/",
+   * a single scope will be constructed for "https://site.com/" including
+   * their shared mappings.
+   * 
+   * In the case where the scope is on the same origin as the baseUrl, the grouped
+   * root will never backtrack below the baseUrl, unless specifying the mapRoot
+   * option to permit a custom backtracking base.
+   * 
+   * Like rebase, the abs option is used to determine whether root-relative or
+   * map-relative URLs should be used.
+   * 
+   * For example, if the baseUrl is file:///path/to/packages/a/ and there is a scope
+   * on the same URL, then that scope will not be grouped with a scope of
+   * file://path/to/app/packages/b/ to avoid creating a "../" scope, unless a mapRoot
+   * of file:///path/to/app/ is provided to indicate that this is permitted.
+   *
+   */
+  flatten (mapRoot = this.baseUrl, absRoot: string | boolean = false) {
+    // for each scope, update its mappings to be in the shared base where possible
     for (const scope of Object.keys(this.scopes)) {
       const scopeImports = this.scopes[scope];
 
       const scopeUrl = new URL(scope, this.baseUrl);
-      const scopeOrigin = scopeUrl.protocol + '//' + scopeUrl.hostname + (scopeUrl.port ? ':' + scopeUrl.port : '') + '/';
-      const scopeBaseUrl = scopeBaseOrigin[scopeOrigin]!;
 
-      let scopeBase = this.scopes[scopeBaseUrl] || scopeUrl.protocol !== 'file:' && {};
+      let scopeBaseUrl: string;
+      if (scopeUrl.protocol === this.baseUrl.protocol && scopeUrl.hostname === this.baseUrl.hostname && scopeUrl.port === this.baseUrl.port)
+        scopeBaseUrl = rebase(this.baseUrl, mapRoot, absRoot);
+      else
+        scopeBaseUrl = scopeUrl.protocol + '//' + scopeUrl.hostname + (scopeUrl.port ? ':' + scopeUrl.port : '') + '/';
+
+      let scopeBase = this.scopes[scopeBaseUrl] || {};
       if (scopeBase === scopeImports) scopeBase = null;
 
       let flattenedAll = true;
@@ -187,7 +198,7 @@ export class ImportMap {
         else if (scopeBase && (!scopeBase[name] || targetEquals(scopeBase[name], target, this.baseUrl))) {
           scopeBase[name] = target;
           replaceTarget(scopeBase, name, target => {
-            return relativeUrl(new URL(target, this.baseUrl), this.baseUrl);
+            return rebase(new URL(target, this.baseUrl), this.baseUrl, absRoot);
           });
           delete scopeImports[name];
           this.scopes[<string>scopeBaseUrl] = alphabetize(scopeBase);
@@ -202,7 +213,7 @@ export class ImportMap {
     return this;
   }
 
-  rebase (newBaseUrl: string = this.baseUrl.href, abs = false) {
+  rebase (newBaseUrl: string = this.baseUrl.href, absRoot: string | boolean = false) {
     const oldBaseUrl = this.baseUrl;
     this.baseUrl = new URL(newBaseUrl, this.baseUrl);
     if (!this.baseUrl.pathname.endsWith('/')) this.baseUrl.pathname += '/';
@@ -210,10 +221,10 @@ export class ImportMap {
     for (const impt of Object.keys(this.imports)) {
       replaceTarget(this.imports, impt, target => {
         if (target !== null)
-          return relativeUrl(new URL(target, oldBaseUrl), this.baseUrl, abs);
+          return rebase(new URL(target, oldBaseUrl), this.baseUrl, absRoot);
       });
       if (!isPlain(impt)) {
-        const newImpt = relativeUrl(new URL(impt, oldBaseUrl), this.baseUrl, abs);
+        const newImpt = rebase(new URL(impt, oldBaseUrl), this.baseUrl, absRoot);
         if (newImpt !== impt) {
           changedImportProps = true;
           this.imports[newImpt] = this.imports[impt];
@@ -230,10 +241,10 @@ export class ImportMap {
       for (let name of Object.keys(scopeImports)) {
         replaceTarget(scopeImports, name, target => {
           if (target !== null)
-            return relativeUrl(new URL(target, oldBaseUrl), this.baseUrl, abs);
+            return rebase(new URL(target, oldBaseUrl), this.baseUrl, absRoot);
         });
         if (!isPlain(name)) {
-          const newName = relativeUrl(new URL(name, oldBaseUrl), this.baseUrl, abs);
+          const newName = rebase(new URL(name, oldBaseUrl), this.baseUrl, absRoot);
           if (newName !== name) {
             changedScopeImportProps = true;
             scopeImports[newName] = scopeImports[name];
@@ -243,7 +254,7 @@ export class ImportMap {
       }
       if (changedScopeImportProps)
         this.scopes[scope] = alphabetize(scopeImports);
-      const newScope = relativeUrl(new URL(scope, oldBaseUrl), this.baseUrl, abs);
+      const newScope = rebase(new URL(scope, oldBaseUrl), this.baseUrl, absRoot);
       if (scope !== newScope) {
         changedScopeProps = true;
         delete this.scopes[scope];
@@ -289,8 +300,8 @@ export class ImportMap {
     for (const [scope] of scopeMatches) {
       let mapMatch = getMapMatch(specifier, this.scopes[scope]);
       if (!mapMatch && specifierUrl) {
-        mapMatch = getMapMatch(specifier = relativeUrl(specifierUrl, this.baseUrl, true), this.scopes[scope]) ||
-          getMapMatch(specifier = relativeUrl(specifierUrl, this.baseUrl, false), this.scopes[scope]);
+        mapMatch = getMapMatch(specifier = rebase(specifierUrl, this.baseUrl, true), this.scopes[scope]) ||
+          getMapMatch(specifier = rebase(specifierUrl, this.baseUrl, false), this.scopes[scope]);
       }
       if (mapMatch) {
         const target = env ? resolveConditional(this.scopes[scope][mapMatch], env) : this.scopes[scope][mapMatch];
@@ -302,8 +313,8 @@ export class ImportMap {
     }
     let mapMatch = getMapMatch(specifier, this.imports);
     if (!mapMatch && specifierUrl) {
-      mapMatch = getMapMatch(specifier = relativeUrl(specifierUrl, this.baseUrl, true), this.imports) ||
-          getMapMatch(specifier = relativeUrl(specifierUrl, this.baseUrl, false), this.imports);
+      mapMatch = getMapMatch(specifier = rebase(specifierUrl, this.baseUrl, true), this.imports) ||
+          getMapMatch(specifier = rebase(specifierUrl, this.baseUrl, false), this.imports);
     }
     if (mapMatch) {
       const target = env ? resolveConditional(this.imports[mapMatch], env) : this.imports[mapMatch];
