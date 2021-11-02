@@ -13,7 +13,7 @@ if (typeof Deno !== 'undefined') {
   // @ts-ignore
   baseUrl = new URL('file://' + Deno.cwd() + '/');
 }
-else if (typeof process !== 'undefined' && process.versions.node) {
+else if (typeof process !== 'undefined' && process.versions?.node) {
   baseUrl = new URL('file://' + process.cwd() + '/');
 }
 else if (typeof document as any !== 'undefined') {
