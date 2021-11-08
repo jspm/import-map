@@ -27,27 +27,18 @@ export declare class ImportMap {
     /**
      * Groups the import map scopes to shared URLs to reduce duplicate mappings.
      *
-     * @param mapRoot {URL}
-     * @param absRoot {string|boolean}
+     * @param baseScope {String | URL}
      *
      * For two given scopes, "https://site.com/x/" and "https://site.com/y/",
      * a single scope will be constructed for "https://site.com/" including
      * their shared mappings.
      *
      * In the case where the scope is on the same origin as the baseUrl, the grouped
-     * root will never backtrack below the baseUrl, unless specifying the mapRoot
+     * root will never backtrack below the baseUrl, unless specifying the baseScope
      * option to permit a custom backtracking base.
      *
-     * Like rebase, the abs option is used to determine whether root-relative or
-     * map-relative URLs should be used.
-     *
-     * For example, if the baseUrl is file:///path/to/packages/a/ and there is a scope
-     * on the same URL, then that scope will not be grouped with a scope of
-     * file://path/to/app/packages/b/ to avoid creating a "../" scope, unless a mapRoot
-     * of file:///path/to/app/ is provided to indicate that this is permitted.
-     *
      */
-    flatten(mapRoot?: URL, absRoot?: string | boolean): this;
+    flatten(baseScope?: URL | string): this;
     rebase(newBaseUrl?: string, absRoot?: string | boolean): this;
     /**
      * Narrow all mappings to the given conditional environment constraints
