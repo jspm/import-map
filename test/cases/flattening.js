@@ -151,7 +151,7 @@ export default function () {
           'tippy.js/headless': 'https://ga.jspm.io/npm:tippy.js@6.3.3/headless/dist/dev.tippy-headless.cjs.js', 
           'toggle-selection': 'https://ga.jspm.io/npm:toggle-selection@1.0.6/index.js'
         },
-        './': {
+        '../../': {
           '@emotion/react': 'https://ga.jspm.io/npm:@emotion/react@11.5.0/dist/dev.emotion-react.browser.cjs.js',
           '@emotion/styled': 'https://ga.jspm.io/npm:@emotion/styled@11.3.0/dist/dev.emotion-styled.browser.cjs.js',
           '@roundforest/bio-design-system': './packages/bio/bio-design-system/lib/exports.js',
