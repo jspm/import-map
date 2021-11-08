@@ -177,12 +177,13 @@ export class ImportMap {
 
       const scopeUrl = new URL(scope, this.baseUrl);
 
-      let scopeBaseUrl: string;
+      let scopeBaseUrl: string;      
       if (scopeUrl.protocol === this.baseUrl.protocol && scopeUrl.hostname === this.baseUrl.hostname && scopeUrl.port === this.baseUrl.port) {
-        scopeBaseUrl = rebase(scopeUrl.href.startsWith(baseScope.href) ? this.baseUrl : scopeUrl, this.baseUrl);
+        scopeBaseUrl = rebase(scopeUrl.href.startsWith(baseScope.href) ? baseScope : scopeUrl, this.baseUrl);
       }
-      else
+      else {
         scopeBaseUrl = scopeUrl.protocol + '//' + scopeUrl.hostname + (scopeUrl.port ? ':' + scopeUrl.port : '') + '/';
+      }
 
       let scopeBase = this.scopes[scopeBaseUrl] || {};
       if (scopeBase === scopeImports) scopeBase = null;
