@@ -109,26 +109,9 @@ export default function () {
         }
       }
     });
-    map.flatten(new URL('../../', import.meta.url), 'https://site.com/public/');
+    map.flatten(new URL('../../', import.meta.url));
     deepStrictEqual(map.toJSON(), {
       scopes: {
-        './packages/bio/bio-home-page/': {
-          '@roundforest/react-localization-commons': './packages/commons/react-localization-commons/lib/src/localization-commons.js',
-          '@roundforest/emotion-styled': './packages/commons/emotion-styled/src/emotion-styled.js'
-        },
-        './packages/bio/bio-product-category-search/': {
-          '@roundforest/react-localization-commons': './packages/commons/react-localization-commons/lib/src/localization-commons.js',
-          '@roundforest/react-environment-context': './packages/commons/react-environment-context/lib/src/react-environment-context.js',
-          '@roundforest/emotion-styled': './packages/commons/emotion-styled/src/emotion-styled.js',
-          '@roundforest/bio-design-system': './packages/bio/bio-design-system/lib/exports.js',
-          '@roundforest/react-full-screen-state': './packages/commons/react-full-screen-state/lib/src/react-full-screen-state.js'
-        },
-        './packages/commons/react-ripple-effect/': {
-          '@roundforest/emotion-styled': './packages/commons/emotion-styled/src/emotion-styled.js'
-        },
-        './packages/commons/react-tooltip/': {
-          '@roundforest/emotion-styled': './packages/commons/emotion-styled/src/emotion-styled.js'
-        },
         'https://ga.jspm.io/npm:react-dom@16.14.0/': { react: 'https://ga.jspm.io/npm:react@16.14.0/dev.index.js' },
         'https://ga.jspm.io/npm:react-dom@17.0.2/': {
           'scheduler/tracing': 'https://ga.jspm.io/npm:scheduler@0.20.2/dev.tracing.js',
@@ -168,22 +151,22 @@ export default function () {
           'tippy.js/headless': 'https://ga.jspm.io/npm:tippy.js@6.3.3/headless/dist/dev.tippy-headless.cjs.js', 
           'toggle-selection': 'https://ga.jspm.io/npm:toggle-selection@1.0.6/index.js'
         },
-        'https://site.com/public/test/cases/': {
+        './': {
           '@emotion/react': 'https://ga.jspm.io/npm:@emotion/react@11.5.0/dist/dev.emotion-react.browser.cjs.js',
           '@emotion/styled': 'https://ga.jspm.io/npm:@emotion/styled@11.3.0/dist/dev.emotion-styled.browser.cjs.js',
-          '@roundforest/bio-design-system': 'https://site.com/public/packages/bio/bio-design-system/lib/exports.js',
-          '@roundforest/bio-home-page': 'https://site.com/public/packages/bio/bio-home-page/lib/src/bio-home-page.js',
-          '@roundforest/bio-product-category-search': 'https://site.com/public/packages/bio/bio-product-category-search/lib/src/exports.js',
-          '@roundforest/emotion-styled': 'https://site.com/public/packages/commons/emotion-styled/src/emotion-styled.js',
-          '@roundforest/frontend-commons': 'https://site.com/public/packages/commons/frontend-commons/lib/src/frontend-commons.js',
-          '@roundforest/react-environment-context': 'https://site.com/public/packages/commons/react-environment-context/lib/src/react-environment-context.js',
-          '@roundforest/react-feature-flags-context': 'https://site.com/public/packages/commons/react-feature-flags-context/lib/src/react-feature-flags-context.js',
-          '@roundforest/react-full-screen-state': 'https://site.com/public/packages/commons/react-full-screen-state/lib/src/react-full-screen-state.js',
-          '@roundforest/react-localization-commons': 'https://site.com/public/packages/commons/react-localization-commons/lib/src/localization-commons.js',
-          '@roundforest/react-map-slots': 'https://site.com/public/packages/commons/react-map-slots/src/map-slots.js',
-          '@roundforest/react-portal': 'https://site.com/public/packages/commons/react-portal/lib/src/portal.js',
-          '@roundforest/react-ripple-effect': 'https://site.com/public/packages/commons/react-ripple-effect/lib/src/ripple-effect.js',
-          '@roundforest/react-tooltip': 'https://site.com/public/packages/commons/react-tooltip/lib/src/tooltip.js',
+          '@roundforest/bio-design-system': './packages/bio/bio-design-system/lib/exports.js',
+          '@roundforest/bio-home-page': './packages/bio/bio-home-page/lib/src/bio-home-page.js',
+          '@roundforest/bio-product-category-search': './packages/bio/bio-product-category-search/lib/src/exports.js',
+          '@roundforest/emotion-styled': './packages/commons/emotion-styled/src/emotion-styled.js',
+          '@roundforest/frontend-commons': './packages/commons/frontend-commons/lib/src/frontend-commons.js',
+          '@roundforest/react-environment-context': './packages/commons/react-environment-context/lib/src/react-environment-context.js',
+          '@roundforest/react-feature-flags-context': './packages/commons/react-feature-flags-context/lib/src/react-feature-flags-context.js',
+          '@roundforest/react-full-screen-state': './packages/commons/react-full-screen-state/lib/src/react-full-screen-state.js',
+          '@roundforest/react-localization-commons': './packages/commons/react-localization-commons/lib/src/localization-commons.js',
+          '@roundforest/react-map-slots': './packages/commons/react-map-slots/src/map-slots.js',
+          '@roundforest/react-portal': './packages/commons/react-portal/lib/src/portal.js',
+          '@roundforest/react-ripple-effect': './packages/commons/react-ripple-effect/lib/src/ripple-effect.js',
+          '@roundforest/react-tooltip': './packages/commons/react-tooltip/lib/src/tooltip.js',
           '@tippyjs/react/headless': 'https://ga.jspm.io/npm:@tippyjs/react@4.2.6/headless/dist/dev.tippy-react-headless.umd.js',
           react: 'https://ga.jspm.io/npm:react@17.0.2/dev.index.js',
           'react-copy-to-clipboard': 'https://ga.jspm.io/npm:react-copy-to-clipboard@5.0.4/lib/index.js',       

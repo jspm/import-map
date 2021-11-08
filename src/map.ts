@@ -153,27 +153,24 @@ export class ImportMap {
   /**
    * Groups the import map scopes to shared URLs to reduce duplicate mappings.
    * 
-   * @param mapRoot {URL}
-   * @param absRoot {string|boolean}
+   * @param baseScope {String | URL}
    * 
    * For two given scopes, "https://site.com/x/" and "https://site.com/y/",
    * a single scope will be constructed for "https://site.com/" including
    * their shared mappings.
    * 
    * In the case where the scope is on the same origin as the baseUrl, the grouped
-   * root will never backtrack below the baseUrl, unless specifying the mapRoot
+   * root will never backtrack below the baseUrl, unless specifying the baseScope
    * option to permit a custom backtracking base.
    * 
-   * Like rebase, the abs option is used to determine whether root-relative or
-   * map-relative URLs should be used.
-   * 
-   * For example, if the baseUrl is file:///path/to/packages/a/ and there is a scope
-   * on the same URL, then that scope will not be grouped with a scope of
-   * file://path/to/app/packages/b/ to avoid creating a "../" scope, unless a mapRoot
-   * of file:///path/to/app/ is provided to indicate that this is permitted.
-   *
    */
-  flatten (mapRoot = this.baseUrl, absRoot: string | boolean = false) {
+  flatten (baseScope: URL | string = this.baseUrl) {
+    if (typeof baseScope === 'string')
+      baseScope = new URL(baseScope.endsWith('/') ? baseScope : baseScope + '/');
+    if (!baseScope.pathname.endsWith('/')) {
+      baseScope = new URL(baseScope.href);
+      baseScope.pathname += '/';
+    }
     // for each scope, update its mappings to be in the shared base where possible
     for (const scope of Object.keys(this.scopes)) {
       const scopeImports = this.scopes[scope];
@@ -182,7 +179,7 @@ export class ImportMap {
 
       let scopeBaseUrl: string;
       if (scopeUrl.protocol === this.baseUrl.protocol && scopeUrl.hostname === this.baseUrl.hostname && scopeUrl.port === this.baseUrl.port) {
-        scopeBaseUrl = rebase(scopeUrl.href.startsWith(mapRoot.href) ? this.baseUrl : scopeUrl, mapRoot, absRoot);
+        scopeBaseUrl = rebase(scopeUrl.href.startsWith(baseScope.href) ? this.baseUrl : scopeUrl, this.baseUrl);
       }
       else
         scopeBaseUrl = scopeUrl.protocol + '//' + scopeUrl.hostname + (scopeUrl.port ? ':' + scopeUrl.port : '') + '/';
@@ -199,7 +196,7 @@ export class ImportMap {
         else if (scopeBase && (!scopeBase[name] || targetEquals(scopeBase[name], target, this.baseUrl))) {
           scopeBase[name] = target;
           replaceTarget(scopeBase, name, target => {
-            return rebase(new URL(target, this.baseUrl), this.baseUrl, absRoot);
+            return rebase(new URL(target, this.baseUrl), this.baseUrl);
           });
           delete scopeImports[name];
           this.scopes[<string>scopeBaseUrl] = alphabetize(scopeBase);
