@@ -14,8 +14,10 @@
   },
   "type": "module",
   "exports": {
-    "source": "./lib/map.js",
-    "default": "./dist/map.js"
+    ".": {
+      "source": "./lib/map.js",
+      "default": "./dist/map.js"
+    }
   },
   "files": [
     "lib",
