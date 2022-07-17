@@ -24,29 +24,47 @@ else if (typeof document as any !== 'undefined') {
     baseUrl = new URL('../', new URL(location.href));
 }
 
-export function importedFrom (parentUrl?: string | URL) {
-  if (!parentUrl) return '';
-  return ` imported from ${parentUrl}`;
+export function getCommonBase (a: string, b: string): string {
+  if (a.startsWith(b))
+    return b;
+  if (b.startsWith(a))
+    return a;
+  const aSegments = a.split('/');
+  const bSegments = b.split('/');
+  let i = 0;
+  while (aSegments[i] === bSegments[i])
+    i++;
+  return aSegments.slice(0, i).join('/') + '/';
 }
 
-function matchesRoot (url: URL, baseUrl: URL) {
+export function sameOrigin (url: URL, baseUrl: URL) {
   return url.protocol === baseUrl.protocol && url.host === baseUrl.host && url.port === baseUrl.port && url.username === baseUrl.username && url.password === baseUrl.password;
 }
 
-export function rebase (url: URL, baseUrl = new URL('/', url), outBase: boolean | string = false) {
-  if (typeof outBase === 'boolean')
-    outBase = outBase ? '/' : './';
-  else if (!outBase.endsWith('/'))
-    outBase += '/';
-  baseUrl.search = baseUrl.hash = '';
-  if (!baseUrl.pathname.endsWith('/'))
-    baseUrl.pathname += '/';
-  const href = url.href;
-  const baseHref = baseUrl.href;
-  if (href.startsWith(baseHref))
-    return outBase + href.slice(baseHref.length);
-  if (!matchesRoot(url, baseUrl))
-    return url.href;
+export function resolve (url: string, mapUrl: URL, rootUrl: URL | null): string {
+  if (url.startsWith('/') || url.startsWith('//'))
+    return rootUrl ? new URL(url, rootUrl).href : url;
+  return new URL(url, mapUrl).href;
+}
+
+export function rebase (url: string, baseUrl: URL, rootUrl: URL | null = null) {
+  let resolved;
+  if (url.startsWith('/') || url.startsWith('//')) {
+    if (rootUrl === null)
+      return url;
+    resolved = new URL(url, rootUrl);
+  }
+  else {
+    resolved = new URL(url, baseUrl);
+  }
+  if (sameOrigin(resolved, baseUrl))
+    return relative(resolved, baseUrl);
+  if (rootUrl && resolved.href.startsWith(rootUrl.href))
+    return resolved.href.slice(rootUrl.href.length - 1);
+  return resolved.href;
+}
+
+export function relative (url: URL, baseUrl: URL) {
   const baseUrlPath = baseUrl.pathname;
   const urlPath = url.pathname;
   const minLen = Math.min(baseUrlPath.length, urlPath.length);
@@ -55,7 +73,8 @@ export function rebase (url: URL, baseUrl = new URL('/', url), outBase: boolean 
     if (baseUrlPath[i] !== urlPath[i]) break;
     if (urlPath[i] === '/') sharedBaseIndex = i;
   }
-  return '../'.repeat(baseUrlPath.slice(sharedBaseIndex + 1).split('/').length - 1) + urlPath.slice(sharedBaseIndex + 1) + url.search + url.hash;
+  const backtracks = baseUrlPath.slice(sharedBaseIndex + 1).split('/').length - 1;
+  return (backtracks ? '../'.repeat(backtracks) : './') + urlPath.slice(sharedBaseIndex + 1) + url.search + url.hash;
 }
 
 export function isURL (specifier: string) {
@@ -76,9 +95,4 @@ export function isPlain (specifier: string) {
 
 export function isRelative (specifier: string) {
   return specifier.startsWith('./') || specifier.startsWith('../') || specifier.startsWith('/');
-}
-
-export function urlToNiceStr (url: string) {
-  if (url.startsWith(baseUrl.href))
-    return './' + url.slice(baseUrl.href.length);
 }

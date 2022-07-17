@@ -1,0 +1,26 @@
+version = 0.1
+default-task = 'build'
+
+extensions = ['chomp@0.1:swc', 'chomp@0.1:rollup']
+
+[[task]]
+dep = 'src/##.ts'
+target = 'lib/##.js'
+template = 'swc'
+
+[[task]]
+name = 'build'
+target = 'dist/map.js'
+deps = ['lib/**/*.js']
+template = 'rollup'
+[task.template-options]
+entries = ['lib/map.js']
+
+[[task]]
+name = 'test'
+dep = 'test:'
+
+[[task]]
+name = 'test:#'
+deps = ['lib/**/*.js', 'test/cases/#.js']
+run = 'node -C source $DEP'
