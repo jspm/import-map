@@ -308,8 +308,12 @@ export class ImportMap implements IImportMap {
   rebase (mapUrl: URL | string = this.mapUrl, rootUrl?: URL | string | null) {
     if (typeof mapUrl === 'string')
       mapUrl = new URL(mapUrl);
-    if (rootUrl === undefined)
-      rootUrl = this.rootUrl === null || mapUrl.protocol !== 'https:' && mapUrl.protocol !== 'http:' ? null : new URL('/', mapUrl);
+    if (rootUrl === undefined) {
+      if (mapUrl.href === this.mapUrl.href)
+        rootUrl = this.rootUrl;
+      else
+        rootUrl = this.rootUrl === null || mapUrl.protocol !== 'https:' && mapUrl.protocol !== 'http:' ? null : new URL('/', mapUrl);
+    }
     else if (typeof rootUrl === 'string')
       rootUrl = new URL(rootUrl);
     let changedImportProps = false;
