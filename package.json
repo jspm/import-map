@@ -3,7 +3,7 @@
   "description": "Package Import Map Utility",
   "license": "MIT",
   "version": "1.0.0",
-  "types": "lib/map.d.ts",
+  "types": "src/map.ts",
   "type": "module",
   "exports": {
     ".": {
@@ -12,12 +12,13 @@
     }
   },
   "files": [
+    "src",
     "lib",
     "dist"
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jspm/map.git"
+    "url": "git+https://github.com/jspm/import-map.git"
   },
   "keywords": [
     "jspm",

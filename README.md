@@ -139,7 +139,7 @@ console.log(new ImportMap({
 
 ## API
 
-See [lib/map.d.ts](https://github.com/jspm/import-map/blob/main/lib/map.d.ts).
+See [src/map.ts](https://github.com/jspm/import-map/blob/main/src/map.ts).
 
 Support is also provided for conditional maps supporting a way to manage generic maps for multiple environment targets, before serializing or resolving for exact environment targets.
 
