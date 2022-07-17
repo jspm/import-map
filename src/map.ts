@@ -26,7 +26,15 @@ export class ImportMap implements IImportMap {
    */
   rootUrl: URL | null;
 
-  constructor ({ map, mapUrl = baseUrl, rootUrl }: { map?: IImportMap, mapUrl?: string | URL, rootUrl?: string | URL | null }) {
+  /**
+   * Create a new import map instance
+   * 
+   * @param opts import map options, can be an optional bag of { map?, mapUrl?, rootUrl? } or just a direct mapUrl
+   */
+  constructor (opts: { map?: IImportMap, mapUrl?: string | URL, rootUrl?: string | URL | null } | string | URL) {
+    let { map, mapUrl = baseUrl, rootUrl } = opts instanceof URL || typeof opts === 'string' || opts === undefined
+        ? { mapUrl: opts, map: undefined, rootUrl: undefined }
+        : opts;
     if (typeof mapUrl === 'string')
       mapUrl = new URL(mapUrl);
     this.mapUrl = mapUrl;
