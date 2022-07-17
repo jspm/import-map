@@ -272,7 +272,7 @@ export class ImportMap implements IImportMap {
       let flattenedAll = true;
       for (const name of Object.keys(scopeImports)) {
         const target = scopeImports[name];
-        if (new URL(this.imports[name], this.mapUrl).href === new URL(target, this.mapUrl).href) {
+        if (this.imports[name] && new URL(this.imports[name], this.mapUrl).href === new URL(target, this.mapUrl).href) {
           delete scopeImports[name];
         }
         else if (scopeBase && (!scopeBase[name] || new URL(scopeBase[name], this.mapUrl).href === new URL(target, this.mapUrl).href)) {
@@ -293,9 +293,13 @@ export class ImportMap implements IImportMap {
   /**
    * Rebase the entire import map to a new mapUrl and rootUrl
    * 
-   * Just like the constructor options, the rootUrl will default
-   * to the mapUrl base if it is an http: or https: scheme URL,
-   * and null otherwise keeping absolute URLs entirely in-tact.
+   * If the rootUrl is not provided, it will remain null if it was
+   * already set to null.
+   * 
+   * Otherwise, just like the constructor options, the rootUrl
+   * will default to the mapUrl base if it is an http: or https:
+   * scheme URL, and null otherwise keeping absolute URLs entirely
+   * in-tact.
    * 
    * @param mapUrl The new map URL to use
    * @param rootUrl The new root URL to use
@@ -305,7 +309,7 @@ export class ImportMap implements IImportMap {
     if (typeof mapUrl === 'string')
       mapUrl = new URL(mapUrl);
     if (rootUrl === undefined)
-      rootUrl = this.rootUrl === null && mapUrl.protocol !== 'https:' && mapUrl.protocol !== 'http:' ? null : new URL('/', mapUrl);
+      rootUrl = this.rootUrl === null || mapUrl.protocol !== 'https:' && mapUrl.protocol !== 'http:' ? null : new URL('/', mapUrl);
     else if (typeof rootUrl === 'string')
       rootUrl = new URL(rootUrl);
     let changedImportProps = false;

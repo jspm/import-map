@@ -57,10 +57,10 @@ export function rebase (url: string, baseUrl: URL, rootUrl: URL | null = null) {
   else {
     resolved = new URL(url, baseUrl);
   }
-  if (sameOrigin(resolved, baseUrl))
-    return relative(resolved, baseUrl);
   if (rootUrl && resolved.href.startsWith(rootUrl.href))
     return resolved.href.slice(rootUrl.href.length - 1);
+  if (sameOrigin(resolved, baseUrl))
+    return relative(resolved, baseUrl);
   return resolved.href;
 }
 

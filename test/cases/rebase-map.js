@@ -3,6 +3,7 @@ import { ImportMap } from '@jspm/import-map';
 
 const map = new ImportMap({
   mapUrl: 'https://site.com/',
+  rootUrl: null,
   map: {
     imports: {
       './some': './another',
