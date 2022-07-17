@@ -2,16 +2,8 @@
   "name": "@jspm/import-map",
   "description": "Package Import Map Utility",
   "license": "MIT",
-  "version": "0.3.3",
-  "types": "map.d.ts",
-  "scripts": {
-    "tsc": "tsc -p .",
-    "tsc:watch": "tsc -p . --watch",
-    "rollup": "rollup -c",
-    "build": "npm run tsc && npm run rollup && cp lib/map.d.ts .",
-    "test": "node --conditions source --enable-source-maps test/test.js",
-    "test:build": "node --enable-source-maps test/test.js"
-  },
+  "version": "1.0.0",
+  "types": "lib/map.d.ts",
   "type": "module",
   "exports": {
     ".": {
@@ -21,8 +13,7 @@
   },
   "files": [
     "lib",
-    "dist",
-    "map.d.ts"
+    "dist"
   ],
   "repository": {
     "type": "git",
@@ -39,7 +30,8 @@
   },
   "homepage": "https://github.com/jspm/import-map#readme",
   "devDependencies": {
-    "rollup": "^2.53.3",
-    "typescript": "^4.3.5"
+    "@swc/cli": "^0.1.57",
+    "@swc/core": "^1.2.215",
+    "rollup": "^2.53.3"
   }
 }

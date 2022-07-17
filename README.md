@@ -11,36 +11,32 @@ Node.js:
 npm install @jspm/import-map
 ```
 
-Browser:
-
-```js
-const { ImportMap } = await import('https://jspm.dev/@jspm/import-map');
-```
-
-`@jspm/import-map` only ships as an ES module, so to use it in Node.js add `"type": "module"` to your package.json file or write an `.mjs` to load it.
-
 ### Usage
+
+`@jspm/import-map` only ships as an ES module.
 
 example.mjs
 ```js
 import { ImportMap } from '@jspm/import-map';
 
-// Must pass a full URL as a base URL for the map
-const mapBase = new URL('.', import.meta.url);
+const mapUrl = import.meta.url;
 
-const map = new ImportMap(mapBase, {
-  imports: {
-    react: 'https://cdn.com/react.js'
-  },
-  scopes: {
-    'https://site.com/': {
-      react: 'https://cdn.com/react2.js'
+const map = new ImportMap({
+  mapUrl, // optional
+  map: {
+    imports: {
+      react: 'https://cdn.com/react.js'
+    },
+    scopes: {
+      'https://site.com/': {
+        react: 'https://cdn.com/react2.js'
+      }
     }
   }
 });
 
 // Use the map resolver
-map.resolve('react', mapBase) === 'https://cdn.com/react.js';
+map.resolve('react') === 'https://cdn.com/react.js';
 map.resolve('react', 'https://site.com/') === 'https://cdn.com/react2.js';
 
 // Supports normal URL resolution behaving a browser-compatible ES module resolver
@@ -48,11 +44,11 @@ map.resolve('./hello.js', 'https://site.com/') === 'https://site.com/hello.js';
 
 // Mutate the map
 map.set('react', './custom-react.js');
-map.resolve('react') === new URL('./custom-react.js', mapBase).href;
+map.resolve('react') === new URL('./custom-react.js', mapUrl).href;
 
 // Mutate the map inside a custom scope
 map.set('react', './custom-react2.js', 'https://another.com/');
-map.resolve('react', 'https://another.com/') === new URL('./custom-react2.js', mapBase).href;
+map.resolve('react', 'https://another.com/') === new URL('./custom-react2.js', mapUrl).href;
 
 // Get the map JSON
 console.log(JSON.stringify(map.toJSON(), null, 2));
@@ -116,17 +112,36 @@ console.log(JSON.stringify(map.toJSON(), null, 2));
 //     }
 //   }
 // }
+
+// Combine subpaths in the map
+// This is only supported for scopes and not top-level imports,
+// to avoid losing dependency information from imports.
+// (all non-returning methods support chaining)
+console.log(new ImportMap({
+  map: {
+    scopes: {
+      "/": {
+        "pkg/a.js": "/pkg/a.js",
+        "pkg/b.js": "/pkg/b.js"
+      }
+    }
+  }
+}).combineSubpaths().toJSON());
+// {
+//   "imports": {},
+//   "scopes": {
+//     "/": {
+//       "pkg/": "/pkg/"
+//     }
+//   }
+//  }
 ```
 
 ## API
 
-See [map.d.ts](https://github.com/jspm/import-map/blob/main/map.d.ts).
+See [lib/map.d.ts](https://github.com/jspm/import-map/blob/main/lib/map.d.ts).
 
 Support is also provided for conditional maps supporting a way to manage generic maps for multiple environment targets, before serializing or resolving for exact environment targets.
-
-## Contributing
-
-**All pull requests welcome!**
 
 ### License
 

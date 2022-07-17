@@ -1,90 +1,59 @@
-import { rebase, isPlain, isURL } from "./common/url.js";
-import { alphabetize } from "./common/alphabetize.js";
-
-export interface ConditionalTarget {
-  [env: string]: ConditionalTarget | string | null;
-}
+import { baseUrl, rebase, isPlain, isURL, getCommonBase, resolve, sameOrigin } from './url.js';
+import { alphabetize } from './alphabetize.js';
 
 export interface IImportMap {
-  imports?: Record<string, string | null>;
+  imports?: Record<string, string>;
   scopes?: {
-    [scope: string]: Record<string, string | null>;
+    [scope: string]: Record<string, string>;
   };
 }
 
-export interface IConditionalImportMap {
-  imports?: Record<string, string | ConditionalTarget | null>;
-  scopes?: {
-    [scope: string]: Record<string, string | ConditionalTarget | null>;
-  };
-}
+export class ImportMap implements IImportMap {
+  imports: Record<string, string> = Object.create(null);
+  scopes: Record<string, Record<string, string>> = Object.create(null);
 
-function replaceTarget (record: Record<string, string | ConditionalTarget | null>, key: string, replaceFn: (target: string | null) => string | null | undefined) {
-  const target = record[key];
-  if (typeof target === 'string' || target === null) {
-    const replacement = replaceFn(target as string | null);
-    if (replacement !== undefined)
-      record[key] = replacement;
-  }
-  else {
-    for (const cnd of Object.keys(target))
-      replaceTarget(target, cnd, replaceFn);
-  }
-}
+  /**
+   * The absolute URL of the import map, for determining relative resolutions
+   * When using file:/// URLs this allows relative modules to be co-located
+   */
+  mapUrl: URL;
+  /**
+   * The URL to use for root-level resolutions in the import map
+   * If null, root resolutions are not resolved and instead left as-is
+   * 
+   * By default, rootUrl is null unless the mapUrl is an http or https URL,
+   * in which case it is taken to be the root of the mapUrl.
+   */
+  rootUrl: URL | null;
 
-function mapTarget (target: string | null | ConditionalTarget, mapFn: (target: string | null) => string | null) {
-  if (typeof target === 'string' || target === null)
-    return mapFn(target as string | null);
-  const mapped = {};
-  for (const cnd of Object.keys(target))
-    mapped[cnd] = mapTarget(target[cnd], mapFn);
-  return mapped;
-}
-
-function targetEquals (target: string | ConditionalTarget | null, comparison: string | ConditionalTarget | null, baseUrl: URL) {
-  if (target === null || comparison === null)
-    return target === comparison;
-
-  if (typeof target === 'string' || typeof comparison === 'string') {
-    if (typeof target !== 'string' || typeof comparison !== 'string')
-      return false;
-    return new URL(target, baseUrl).href === new URL(comparison, baseUrl).href;
+  constructor ({ map, mapUrl = baseUrl, rootUrl }: { map?: IImportMap, mapUrl?: string | URL, rootUrl?: string | URL | null }) {
+    if (typeof mapUrl === 'string')
+      mapUrl = new URL(mapUrl);
+    this.mapUrl = mapUrl;
+    if (rootUrl === undefined && (this.mapUrl.protocol === 'http:' || this.mapUrl.protocol === 'https:'))
+      rootUrl = new URL('/', this.mapUrl);
+    else if (typeof rootUrl === 'string')
+      rootUrl = new URL(rootUrl);
+    this.rootUrl = rootUrl || null;
+    if (map)
+      this.extend(map);
   }
 
-  const targetKeys = Object.keys(target);
-  const comparisonKeys = Object.keys(comparison);
-  if (targetKeys.length !== comparisonKeys.length)
-    return false;
-  for (let i = 0; i < targetKeys.length; i++) {
-    const targetKey = targetKeys[i];
-    const comparisonKey = comparisonKeys[i];
-    if (targetKey !== comparisonKey)
-      return false;
-    if (!targetEquals(target[targetKey], comparison[comparisonKey], baseUrl))
-      return false;
-  }
-  return true;
-}
-
-export class ImportMap {
-  imports: Record<string, string | ConditionalTarget | null> = Object.create(null);
-  scopes: Record<string, Record<string, string | ConditionalTarget | null>> = Object.create(null);
-
-  baseUrl: URL;
-
-  constructor (mapBaseUrl: string | URL, initialMap?: IConditionalImportMap) {
-    if (typeof mapBaseUrl === 'string')
-      mapBaseUrl = new URL(mapBaseUrl);
-    this.baseUrl = mapBaseUrl;
-    if (initialMap)
-      this.extend(initialMap, true);
-  }
-
+  /**
+   * Clones the import map
+   * @returns Cloned import map
+   */
   clone () {
-    return new ImportMap(this.baseUrl, this.toJSON());
+    return new ImportMap({ mapUrl: this.mapUrl, rootUrl: this.rootUrl }).extend(this);
   }
 
-  extend (map: IImportMap | IConditionalImportMap, overrideScopes = false) {
+  /**
+   * Extends the import map mappings
+   * @param map Import map to extend with
+   * @param overrideScopes Set to true to have scopes be replacing instead of extending
+   * @returns ImportMap for chaining
+   */
+  extend (map: IImportMap, overrideScopes = false) {
     Object.assign(this.imports, map.imports);
     if (overrideScopes) {
       Object.assign(this.scopes, map.scopes);
@@ -93,114 +62,215 @@ export class ImportMap {
       for (const scope of Object.keys(map.scopes))
         Object.assign(this.scopes[scope] = this.scopes[scope] || Object.create(null), map.scopes[scope]);
     }
-    this.rebase(this.baseUrl.href);
+    this.rebase();
     return this;
   }
 
+  /**
+   * Performs an alphanumerical sort on the import map imports and scopes
+   * @returns ImportMap for chaining
+   */
   sort () {
     this.imports = alphabetize(this.imports);
     this.scopes = alphabetize(this.scopes);
     for (const scope of Object.keys(this.scopes))
       this.scopes[scope] = alphabetize(this.scopes[scope]);
+    return this;
   }
 
-  set (name: string, target: string | null | ConditionalTarget, parent?: string) {
+  /**
+   * Set a specific entry in the import map
+   * 
+   * @param name Specifier to set
+   * @param target Target of the map
+   * @param parent Optional parent scope
+   * @returns ImportMap for chaining
+   */
+  set (name: string, target: string, parent?: string) {
     if (!parent) {
       this.imports[name] = target;
     }
     else {
-      this.scopes[parent] = this.scopes[parent] || {};
+      this.scopes[parent] = this.scopes[parent] || Object.create(null);
       this.scopes[parent][name] = target;
     }
+    return this;
   }
 
+  /**
+   * Bulk replace URLs in the import map
+   * Provide a URL ending in "/" to perform path replacements
+   * 
+   * @param url {String} The URL to replace
+   * @param newUrl {String} The URL to replace it with
+   * @returns ImportMap for chaining
+   */
   replace (url: string, newUrl: string) {
     const replaceSubpaths = url.endsWith('/');
     if (!isURL(url))
       throw new Error('URL remapping only supports URLs');
-    const newRelPkgUrl = rebase(new URL(newUrl), this.baseUrl);
+    const newRelPkgUrl = rebase(newUrl, this.mapUrl, this.rootUrl);
     for (const impt of Object.keys(this.imports)) {
-      replaceTarget(this.imports, impt, target => {
-        if (target === null) return;
-        if (replaceSubpaths && target.startsWith(url) || target === url)
-          return newRelPkgUrl + target.slice(url.length);
-      });
+      const target = this.imports[impt];
+      if (replaceSubpaths && target.startsWith(url) || target === url)
+          this.imports[impt] = newRelPkgUrl + target.slice(url.length);
     }
     for (const scope of Object.keys(this.scopes)) {
       const scopeImports = this.scopes[scope];
-      const scopeUrl = new URL(scope, this.baseUrl).href;
+      const scopeUrl = new URL(scope, this.mapUrl).href;
       if (replaceSubpaths && scopeUrl.startsWith(url) || scopeUrl === url) {
         const newScope = newRelPkgUrl + scopeUrl.slice(url.length);
         delete this.scopes[scope];
         this.scopes[newScope] = scopeImports;
       }
-      for (const name of Object.keys(scopeImports)) {
-        replaceTarget(scopeImports, name, target => {
-          if (target === null) return;
-          if (replaceSubpaths && target.startsWith(url) || target === url)
-            return newRelPkgUrl + target.slice(url.length);
-        });
+      for (const impt of Object.keys(scopeImports)) {
+        const target = scopeImports[impt];
+        if (replaceSubpaths && target.startsWith(url) || target === url)
+            scopeImports[impt] = newRelPkgUrl + target.slice(url.length);
       }
     }
     return this;
   }
 
-  // TODO: flattening operation that combines subpaths where possible into folder maps
+  /**
+   * Groups subpath mappings into path mappings when multiple exact subpaths
+   * exist under the same path.
+   * 
+   * For two mappings like { "base/a.js": "/a.js", "base/b.js": "/b.js" },
+   * these will be replaced with a single path mapping { "base/": "/" }.
+   * Groupings are done throughout all import scopes individually.
+   * 
+   * @returns ImportMap for chaining
+   */
   combineSubpaths () {
+    // iterate possible bases and submappings, grouping bases greedily
+    const combineSubpathMappings = (mappings: Record<string, string>) => {
+      let outMappings: Record<string, string> = Object.create(null);
+      for (let impt of Object.keys(mappings)) {
+        const target = mappings[impt];
+        // Check if this import is already handled by an existing path mapping
+        // If so, either merge with it or continue on
+        let mapMatch;
+        if (isPlain(impt)) {
+          mapMatch = getMapMatch(impt, outMappings);
+        }
+        else {
+          mapMatch = getMapMatch(impt = rebase(impt, this.mapUrl, this.rootUrl), outMappings) ||
+              this.rootUrl && getMapMatch(impt = rebase(impt, this.mapUrl, null), outMappings) || undefined;
+        }
+        if (mapMatch && impt.slice(mapMatch.length) ===
+              resolve(target, this.mapUrl, this.rootUrl).slice(resolve(outMappings[mapMatch], this.mapUrl, this.rootUrl).length)) {
+          continue;
+        }
+  
+        let newbase = false;
+        const targetParts = mappings[impt].split('/');
+        const imptParts = impt.split('/');
+        for (let j = imptParts.length - 1; j > 0; j--) {
+          const subpath = imptParts.slice(j).join('/');
+          const subpathTarget = targetParts.slice(targetParts.length - (imptParts.length - j)).join('/');
+          if (subpath !== subpathTarget) {
+            outMappings[impt] = mappings[impt];
+            break;
+          }
+          const base = imptParts.slice(0, j).join('/') + '/';
+          if (outMappings[base])
+            continue;
+          const baseTarget = targetParts.slice(0, targetParts.length - (imptParts.length - j)).join('/') + '/';
+  
+          // Dedupe existing mappings against the new base to remove them
+          // And if we dont dedupe against anything then dont perform this basing
+          for (let impt of Object.keys(outMappings)) {
+            const target = outMappings[impt];
+            let matches = false;
+            if (isPlain(impt)) {
+              matches = impt.startsWith(base);
+            }
+            else {
+              matches = (impt = rebase(impt, this.mapUrl, this.rootUrl)).startsWith(base) ||
+                  (impt = rebase(impt, this.mapUrl, this.rootUrl)).startsWith(base);
+            }
+            if (matches && impt.slice(base.length) === resolve(target, this.mapUrl, this.rootUrl).slice(resolve(baseTarget, this.mapUrl, this.rootUrl).length)) {
+              newbase = true;
+              delete outMappings[impt];
+            }
+          }
 
+          if (newbase) {
+            outMappings[base] = baseTarget;
+            break;
+          }
+        }
+
+        if (!newbase)
+          outMappings[impt] = target;
+      }
+      return outMappings;
+    };
+
+    // Only applies for scopes since "imports" are generally treated as
+    // an authoritative entry point list
+    for (const scope of Object.keys(this.scopes)) {
+      this.scopes[scope] = combineSubpathMappings(this.scopes[scope]);
+    }
+
+    return this;
   }
 
   /**
    * Groups the import map scopes to shared URLs to reduce duplicate mappings.
    * 
-   * @param baseScope {String | URL}
-   * 
    * For two given scopes, "https://site.com/x/" and "https://site.com/y/",
    * a single scope will be constructed for "https://site.com/" including
-   * their shared mappings.
+   * their shared mappings, only retaining the scopes if they have differences.
    * 
-   * In the case where the scope is on the same origin as the baseUrl, the grouped
-   * root will never backtrack below the baseUrl, unless specifying the baseScope
-   * option to permit a custom backtracking base.
+   * In the case where the scope is on the same origin as the mapUrl, the grouped
+   * scope is determined based on determining the common baseline over all local scopes
    * 
+   * @returns ImportMap for chaining
    */
-  flatten (baseScope: URL | string = this.baseUrl) {
-    if (typeof baseScope === 'string')
-      baseScope = new URL(baseScope.endsWith('/') ? baseScope : baseScope + '/');
-    if (!baseScope.pathname.endsWith('/')) {
-      baseScope = new URL(baseScope.href);
-      baseScope.pathname += '/';
+  flatten () {
+    // First, determine the common base for the local mappings if any
+    let localScopemapUrl: string | null = null;
+    for(const scope of Object.keys(this.scopes)) {
+      const scopeUrl = new URL(scope, this.mapUrl);
+      if (scopeUrl.protocol === this.mapUrl.protocol && scopeUrl.hostname === this.mapUrl.hostname && scopeUrl.port === this.mapUrl.port) {
+        if (!localScopemapUrl)
+          localScopemapUrl = scopeUrl.href;
+        else
+          localScopemapUrl = getCommonBase(scopeUrl.href, localScopemapUrl);
+      }
     }
+
+    const relativeLocalScopemapUrl = localScopemapUrl !== null ? rebase(localScopemapUrl, this.mapUrl, this.rootUrl) : null;
+
     // for each scope, update its mappings to be in the shared base where possible
     for (const scope of Object.keys(this.scopes)) {
       const scopeImports = this.scopes[scope];
 
-      const scopeUrl = new URL(scope, this.baseUrl);
+      const scopeUrl = new URL(scope, this.mapUrl);
 
-      let scopeBaseUrl: string;      
-      if (scopeUrl.protocol === this.baseUrl.protocol && scopeUrl.hostname === this.baseUrl.hostname && scopeUrl.port === this.baseUrl.port) {
-        scopeBaseUrl = rebase(scopeUrl.href.startsWith(baseScope.href) ? baseScope : scopeUrl, this.baseUrl);
+      let scopemapUrl: string;
+      if (sameOrigin(scopeUrl, this.mapUrl)) {
+        scopemapUrl = relativeLocalScopemapUrl!;
       }
       else {
-        scopeBaseUrl = scopeUrl.protocol + '//' + scopeUrl.hostname + (scopeUrl.port ? ':' + scopeUrl.port : '') + '/';
+        scopemapUrl = scopeUrl.protocol + '//' + scopeUrl.hostname + (scopeUrl.port ? ':' + scopeUrl.port : '') + '/';
       }
 
-      let scopeBase = this.scopes[scopeBaseUrl] || {};
+      let scopeBase: Record<string, string> | null = this.scopes[scopemapUrl] || Object.create(null);
       if (scopeBase === scopeImports) scopeBase = null;
 
       let flattenedAll = true;
       for (const name of Object.keys(scopeImports)) {
         const target = scopeImports[name];
-        if (targetEquals(this.imports[name], target, this.baseUrl)) {
+        if (new URL(this.imports[name], this.mapUrl).href === new URL(target, this.mapUrl).href) {
           delete scopeImports[name];
         }
-        else if (scopeBase && (!scopeBase[name] || targetEquals(scopeBase[name], target, this.baseUrl))) {
-          scopeBase[name] = target;
-          replaceTarget(scopeBase, name, target => {
-            return rebase(new URL(target, this.baseUrl), this.baseUrl);
-          });
+        else if (scopeBase && (!scopeBase[name] || new URL(scopeBase[name], this.mapUrl).href === new URL(target, this.mapUrl).href)) {
+          scopeBase[name] = rebase(target, this.mapUrl, this.rootUrl);
           delete scopeImports[name];
-          this.scopes[<string>scopeBaseUrl] = alphabetize(scopeBase);
+          this.scopes[<string>scopemapUrl] = alphabetize(scopeBase);
         }
         else {
           flattenedAll = false;
@@ -212,18 +282,30 @@ export class ImportMap {
     return this;
   }
 
-  rebase (newBaseUrl: string = this.baseUrl.href, absRoot: string | boolean = false) {
-    const oldBaseUrl = this.baseUrl;
-    this.baseUrl = new URL(newBaseUrl, this.baseUrl);
-    if (!this.baseUrl.pathname.endsWith('/')) this.baseUrl.pathname += '/';
+  /**
+   * Rebase the entire import map to a new mapUrl and rootUrl
+   * 
+   * Just like the constructor options, the rootUrl will default
+   * to the mapUrl base if it is an http: or https: scheme URL,
+   * and null otherwise keeping absolute URLs entirely in-tact.
+   * 
+   * @param mapUrl The new map URL to use
+   * @param rootUrl The new root URL to use
+   * @returns ImportMap for chaining
+   */
+  rebase (mapUrl: URL | string = this.mapUrl, rootUrl?: URL | string | null) {
+    if (typeof mapUrl === 'string')
+      mapUrl = new URL(mapUrl);
+    if (rootUrl === undefined)
+      rootUrl = this.rootUrl === null && mapUrl.protocol !== 'https:' && mapUrl.protocol !== 'http:' ? null : new URL('/', mapUrl);
+    else if (typeof rootUrl === 'string')
+      rootUrl = new URL(rootUrl);
     let changedImportProps = false;
     for (const impt of Object.keys(this.imports)) {
-      replaceTarget(this.imports, impt, target => {
-        if (target !== null)
-          return rebase(new URL(target, oldBaseUrl), this.baseUrl, absRoot);
-      });
+      const target = this.imports[impt];
+      this.imports[impt] = rebase(resolve(target, this.mapUrl, this.rootUrl), mapUrl, rootUrl);
       if (!isPlain(impt)) {
-        const newImpt = rebase(new URL(impt, oldBaseUrl), this.baseUrl, absRoot);
+        const newImpt = rebase(resolve(impt, this.mapUrl, this.rootUrl), mapUrl, rootUrl);
         if (newImpt !== impt) {
           changedImportProps = true;
           this.imports[newImpt] = this.imports[impt];
@@ -237,23 +319,21 @@ export class ImportMap {
     for (const scope of Object.keys(this.scopes)) {
       const scopeImports = this.scopes[scope];
       let changedScopeImportProps = false;
-      for (let name of Object.keys(scopeImports)) {
-        replaceTarget(scopeImports, name, target => {
-          if (target !== null)
-            return rebase(new URL(target, oldBaseUrl), this.baseUrl, absRoot);
-        });
-        if (!isPlain(name)) {
-          const newName = rebase(new URL(name, oldBaseUrl), this.baseUrl, absRoot);
-          if (newName !== name) {
+      for (const impt of Object.keys(scopeImports)) {
+        const target = scopeImports[impt];
+        scopeImports[impt] = rebase(resolve(target, this.mapUrl, this.rootUrl), mapUrl, rootUrl);
+        if (!isPlain(impt)) {
+          const newName = rebase(resolve(impt, this.mapUrl, this.rootUrl), mapUrl, rootUrl);
+          if (newName !== impt) {
             changedScopeImportProps = true;
-            scopeImports[newName] = scopeImports[name];
-            delete scopeImports[name];
+            scopeImports[newName] = scopeImports[impt];
+            delete scopeImports[impt];
           }
         }
       }
       if (changedScopeImportProps)
         this.scopes[scope] = alphabetize(scopeImports);
-      const newScope = rebase(new URL(scope, oldBaseUrl), this.baseUrl, absRoot);
+      const newScope = rebase(resolve(scope, this.mapUrl, this.rootUrl), mapUrl, rootUrl);
       if (scope !== newScope) {
         changedScopeProps = true;
         delete this.scopes[scope];
@@ -262,88 +342,72 @@ export class ImportMap {
     }
     if (changedScopeProps)
       this.scopes = alphabetize(this.scopes);
+    this.mapUrl = mapUrl;
+    this.rootUrl = rootUrl;
     return this;
   }
 
   /**
-   * Narrow all mappings to the given conditional environment constraints
+   * Perform a module resolution against the import map
+   * 
+   * @param specifier Specifier to resolve
+   * @param parentUrl Parent URL to resolve against
+   * @returns Resolved URL string
    */
-  setEnv (env: string[] | EnvConstraints) {
-    for (const impt of Object.keys(this.imports)) {
-      const target = this.imports[impt];
-      if (typeof target === 'string' || target === null)
-        continue;
-      this.imports[impt] = resolveConditional(target, env);
-    }
-    for (const scope of Object.keys(this.scopes)) {
-      const scopeImports = this.scopes[scope];
-      for (const impt of Object.keys(scopeImports)) {
-        const target = scopeImports[impt];
-        if (typeof target === 'string' || target === null)
-          continue;
-        scopeImports[impt] = resolveConditional(target, env);
-      }
-    }
-    return this;
-  }
-
-  resolve (specifier: string, parentUrl: URL | string = this.baseUrl, env?: string[] | EnvConstraints): string | ConditionalTarget | null {
-    if (typeof parentUrl === 'string')
-      parentUrl = new URL(parentUrl);
+  resolve (specifier: string, parentUrl: string | URL = this.mapUrl): string {
+    if (typeof parentUrl !== 'string')
+      parentUrl = parentUrl.toString();
+    parentUrl = resolve(parentUrl, this.mapUrl, this.rootUrl);
     let specifierUrl: URL | undefined;
     if (!isPlain(specifier)) {
       specifierUrl = new URL(specifier, parentUrl);
       specifier = specifierUrl.href;
     }
-    const scopeMatches = getScopeMatches(parentUrl, this.scopes, this.baseUrl);
+    const scopeMatches = getScopeMatches(parentUrl, this.scopes, this.mapUrl);
     for (const [scope] of scopeMatches) {
       let mapMatch = getMapMatch(specifier, this.scopes[scope]);
       if (!mapMatch && specifierUrl) {
-        mapMatch = getMapMatch(specifier = rebase(specifierUrl, this.baseUrl, true), this.scopes[scope]) ||
-          getMapMatch(specifier = rebase(specifierUrl, this.baseUrl, false), this.scopes[scope]);
+        mapMatch = getMapMatch(specifier = rebase(specifier, this.mapUrl, this.rootUrl), this.scopes[scope]) ||
+          this.rootUrl && getMapMatch(specifier = rebase(specifier, this.mapUrl, null), this.scopes[scope]) || undefined;
       }
       if (mapMatch) {
-        const target = env ? resolveConditional(this.scopes[scope][mapMatch], env) : this.scopes[scope][mapMatch];
-        return mapTarget(target, target => {
-          if (target === null) return null;
-          return new URL(target + specifier.slice(mapMatch.length), this.baseUrl).href;
-        });
+        const target = this.scopes[scope][mapMatch];
+        return resolve(target + specifier.slice(mapMatch.length), this.mapUrl, this.rootUrl);
       }
     }
     let mapMatch = getMapMatch(specifier, this.imports);
     if (!mapMatch && specifierUrl) {
-      mapMatch = getMapMatch(specifier = rebase(specifierUrl, this.baseUrl, true), this.imports) ||
-          getMapMatch(specifier = rebase(specifierUrl, this.baseUrl, false), this.imports);
+      mapMatch = getMapMatch(specifier = rebase(specifier, this.mapUrl, this.rootUrl), this.imports) ||
+          this.rootUrl && getMapMatch(specifier = rebase(specifier, this.mapUrl, null), this.imports) || undefined;
     }
     if (mapMatch) {
-      const target = env ? resolveConditional(this.imports[mapMatch], env) : this.imports[mapMatch];
-      return mapTarget(target, target => {
-        if (target === null) return null;
-        return new URL(target + specifier.slice(mapMatch.length), this.baseUrl).href;
-      });
+      const target = this.imports[mapMatch];
+      return resolve(target + specifier.slice(mapMatch.length), this.mapUrl, this.rootUrl);
     }
     if (specifierUrl)
       return specifierUrl.href;
-    return null;
+    throw new Error(`Unable to resolve ${specifier} in ${parentUrl}`);
   }
 
-  toJSON () {
+  /**
+   * Get the import map JSON data
+   * 
+   * @returns Import map data
+   */
+  toJSON (): IImportMap {
     const obj: any = {};
     if (Object.keys(this.imports).length) obj.imports = this.imports;
     if (Object.keys(this.scopes).length) obj.scopes = this.scopes;
-    // todo: actual deep object clone
     return JSON.parse(JSON.stringify(obj));
   }
 }
 
-export function getScopeMatches (parentUrl: URL, scopes: Record<string, Record<string, string | ConditionalTarget | null>>, baseUrl: URL): [string, string][] {
-  const parentUrlHref = parentUrl.href;
-
-  let scopeCandidates = Object.keys(scopes).map(scope => [scope, new URL(scope, baseUrl).href]);
+export function getScopeMatches (parentUrl: string, scopes: Record<string, Record<string, string>>, mapUrl: URL): [string, string][] {
+  let scopeCandidates = Object.keys(scopes).map(scope => [scope, new URL(scope, mapUrl).href]);
   scopeCandidates = scopeCandidates.sort(([, matchA], [, matchB]) => matchA.length < matchB.length ? 1 : -1);
 
   return scopeCandidates.filter(([, scopeUrl]) => {
-    return scopeUrl === parentUrlHref || scopeUrl.endsWith('/') && parentUrlHref.startsWith(scopeUrl);
+    return scopeUrl === parentUrl || scopeUrl.endsWith('/') && parentUrl.startsWith(scopeUrl);
   }) as [string, string][];
 }
 
@@ -359,59 +423,4 @@ export function getMapMatch<T = any> (specifier: string, map: Record<string, T>)
     }
   }
   return curMatch;
-}
-
-export type EnvConstraints = { include?: string[], exclude?: string[], covers?: string[][] };
-
-export function resolveConditional (target: string | ConditionalTarget | null, env: string[] | EnvConstraints = {}) {
-  if (typeof target === 'string' || target === null)
-    return target;
-
-  if (Array.isArray(env))
-    env = { include: env };
-
-  const { include = [], exclude = [], covers = [] } = env;
-  const { resolved } = internalResolveConditional(target, { include, exclude, covers }, [], []);
-  if (resolved === undefined)
-    return null;
-  return resolved;
-}
-
-function internalResolveConditional (target: string | ConditionalTarget, env: EnvConstraints, pathConditions: string[], closedConditions: string[]): { exhaustive: boolean, resolved: string | ConditionalTarget } {
-  if (typeof target === 'string')
-    return { exhaustive: true, resolved: target };
-  if (target === null)
-    return { exhaustive: true, resolved: target };
-
-  let { include, exclude, covers } = env;
-  let outConditions = {};
-  let outConditionCnt = 0;
-  const curClosedConditions: string[] = [];
-  for (const cnd of Object.keys(target)) {
-    if (closedConditions.includes(cnd))
-      continue;
-    if (curClosedConditions.includes(cnd))
-      continue;
-    
-    const curPathConditions = [cnd, ...pathConditions];
-    const { exhaustive, resolved } = internalResolveConditional(target[cnd], { include, exclude, covers }, curPathConditions, [...closedConditions, ...curClosedConditions]);
-    if (exhaustive)
-      curClosedConditions.push(cnd);
-
-    if (resolved !== undefined && !exclude.includes(cnd)) {
-      outConditions[cnd] = resolved;
-      outConditionCnt++;
-    }
-
-    // if we have a definite include, return and inline if the only one
-    if (cnd === 'default' || include.includes(cnd) || pathConditions.includes(cnd))
-      return { exhaustive: true, resolved: outConditionCnt === 1 ? outConditions[cnd] : outConditions };
-    
-    // if we have completed a cover, then we have no further fallbacks
-    if (covers.some(cover => cover.every(cnd => include.includes(cnd) || pathConditions.includes(cnd) || closedConditions.includes(cnd) || curClosedConditions.includes(cnd))))
-      return { exhaustive: true, resolved: outConditions };
-  }
-  if (outConditionCnt === 0)
-    return { exhaustive: false, resolved: undefined };
-  return { exhaustive: false, resolved: outConditions };
 }
