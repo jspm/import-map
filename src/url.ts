@@ -42,8 +42,8 @@ export function sameOrigin (url: URL, baseUrl: URL) {
 }
 
 export function resolve (url: string, mapUrl: URL, rootUrl: URL | null): string {
-  if (url.startsWith('/') || url.startsWith('//'))
-    return rootUrl ? new URL(url, rootUrl).href : url;
+  if (url.startsWith('/'))
+    return rootUrl ? new URL('.' + url.slice(url[1] === '/' ? 1 : 0), rootUrl).href : url;
   return new URL(url, mapUrl).href;
 }
 
