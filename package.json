@@ -33,6 +33,7 @@
   "devDependencies": {
     "@swc/cli": "^0.1.57",
     "@swc/core": "^1.2.215",
-    "rollup": "^2.53.3"
+    "rollup": "^2.53.3",
+    "typedoc": "^0.23.24"
   }
 }

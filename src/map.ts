@@ -32,7 +32,7 @@ export class ImportMap implements IImportMap {
    * @param opts import map options, can be an optional bag of { map?, mapUrl?, rootUrl? } or just a direct mapUrl
    */
   constructor (opts: { map?: IImportMap, mapUrl?: string | URL, rootUrl?: string | URL | null } | string | URL) {
-    let { map, mapUrl = baseUrl, rootUrl } = opts instanceof URL || typeof opts === 'string' || opts === undefined
+    let { map, mapUrl = baseUrl, rootUrl } = (opts instanceof URL || typeof opts === 'string' || typeof opts === 'undefined')
         ? { mapUrl: opts, map: undefined, rootUrl: undefined }
         : opts;
     if (typeof mapUrl === 'string')
