@@ -4,6 +4,11 @@ default-task = 'build'
 extensions = ['chomp@0.1:swc', 'chomp@0.1:rollup']
 
 [[task]]
+target = 'docs'
+deps = ['src/*.ts']
+run = 'typedoc src/*.ts'
+
+[[task]]
 dep = 'src/##.ts'
 target = 'lib/##.js'
 template = 'swc'
