@@ -59,6 +59,8 @@ export function rebase (url: string, baseUrl: URL, rootUrl: URL | null = null) {
   }
   if (rootUrl && resolved.href.startsWith(rootUrl.href))
     return resolved.href.slice(rootUrl.href.length - 1);
+  if (rootUrl && rootUrl.href.startsWith(resolved.href)) // edge-case
+    return '/' + relative(resolved, baseUrl);
   if (sameOrigin(resolved, baseUrl))
     return relative(resolved, baseUrl);
   return resolved.href;
