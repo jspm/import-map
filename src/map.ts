@@ -125,7 +125,7 @@ export class ImportMap implements IImportMap {
     }
     for (const scope of Object.keys(this.scopes)) {
       const scopeImports = this.scopes[scope];
-      const scopeUrl = new URL(scope, this.mapUrl).href;
+      const scopeUrl = resolve(scope, this.mapUrl, this.rootUrl);
       if (replaceSubpaths && scopeUrl.startsWith(url) || scopeUrl === url) {
         const newScope = newRelPkgUrl + scopeUrl.slice(url.length);
         delete this.scopes[scope];
@@ -241,7 +241,7 @@ export class ImportMap implements IImportMap {
     // First, determine the common base for the local mappings if any
     let localScopemapUrl: string | null = null;
     for(const scope of Object.keys(this.scopes)) {
-      const scopeUrl = new URL(scope, this.mapUrl);
+      const scopeUrl = new URL(resolve(scope, this.mapUrl, this.rootUrl));
       if (scopeUrl.protocol === this.mapUrl.protocol && scopeUrl.hostname === this.mapUrl.hostname && scopeUrl.port === this.mapUrl.port) {
         if (!localScopemapUrl)
           localScopemapUrl = scopeUrl.href;
@@ -256,7 +256,7 @@ export class ImportMap implements IImportMap {
     for (const scope of Object.keys(this.scopes)) {
       const scopeImports = this.scopes[scope];
 
-      const scopeUrl = new URL(scope, this.mapUrl);
+      const scopeUrl = new URL(resolve(scope, this.mapUrl, this.rootUrl));
 
       let scopemapUrl: string;
       if (sameOrigin(scopeUrl, this.mapUrl)) {
@@ -272,10 +272,10 @@ export class ImportMap implements IImportMap {
       let flattenedAll = true;
       for (const name of Object.keys(scopeImports)) {
         const target = scopeImports[name];
-        if (this.imports[name] && new URL(this.imports[name], this.mapUrl).href === new URL(target, this.mapUrl).href) {
+        if (this.imports[name] && resolve(this.imports[name], this.mapUrl, this.rootUrl) === resolve(target, this.mapUrl, this.rootUrl)) {
           delete scopeImports[name];
         }
-        else if (scopeBase && (!scopeBase[name] || new URL(scopeBase[name], this.mapUrl).href === new URL(target, this.mapUrl).href)) {
+        else if (scopeBase && (!scopeBase[name] || resolve(scopeBase[name], this.mapUrl, this.rootUrl) === resolve(target, this.mapUrl, this.rootUrl))) {
           scopeBase[name] = rebase(target, this.mapUrl, this.rootUrl);
           delete scopeImports[name];
           this.scopes[<string>scopemapUrl] = alphabetize(scopeBase);
@@ -379,7 +379,7 @@ export class ImportMap implements IImportMap {
       specifierUrl = new URL(specifier, parentUrl);
       specifier = specifierUrl.href;
     }
-    const scopeMatches = getScopeMatches(parentUrl, this.scopes, this.mapUrl);
+    const scopeMatches = getScopeMatches(parentUrl, this.scopes, this.mapUrl, this.rootUrl);
     for (const [scope] of scopeMatches) {
       let mapMatch = getMapMatch(specifier, this.scopes[scope]);
       if (!mapMatch && specifierUrl) {
@@ -418,8 +418,8 @@ export class ImportMap implements IImportMap {
   }
 }
 
-export function getScopeMatches (parentUrl: string, scopes: Record<string, Record<string, string>>, mapUrl: URL): [string, string][] {
-  let scopeCandidates = Object.keys(scopes).map(scope => [scope, new URL(scope, mapUrl).href]);
+export function getScopeMatches (parentUrl: string, scopes: Record<string, Record<string, string>>, mapUrl: URL, rootUrl?: URL): [string, string][] {
+  let scopeCandidates = Object.keys(scopes).map(scope => [scope, resolve(scope, mapUrl, rootUrl)]);
   scopeCandidates = scopeCandidates.sort(([, matchA], [, matchB]) => matchA.length < matchB.length ? 1 : -1);
 
   return scopeCandidates.filter(([, scopeUrl]) => {
