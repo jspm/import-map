@@ -1,5 +1,3 @@
 {
-  "out": "docs",
-  "entryPoints": ["src/map.ts"],
-  "plugin": ["typedoc-plugin-versions"]
+  "entryPoints": ["src/map.ts"]
 }
