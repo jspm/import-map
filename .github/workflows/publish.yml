@@ -6,12 +6,12 @@ on:
       - "*"
 
 jobs:
-  test-node:
-    name: Node.js Tests
+  publish:
+    name: Publish
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node: [14.x, 16.x]
+        node: [16.x]
     steps:
       - uses: actions/checkout@v2
       - name: Use Node.js ${{ matrix.node }}
@@ -28,14 +28,6 @@ jobs:
         run: chomp build
       - name: Run tests
         run: chomp test
-
-  publish:
-    name: Publish package to npm
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          node: 16.x
       - name: Authenticate with Registry
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
