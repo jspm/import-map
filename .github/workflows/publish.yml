@@ -9,15 +9,12 @@ jobs:
   publish:
     name: Publish
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node: [16.x]
     steps:
       - uses: actions/checkout@v2
-      - name: Use Node.js ${{ matrix.node }}
+      - name: Setup Node
         uses: actions/setup-node@v2
         with:
-          node: ${{ matrix.node }}
+          node-version: "16.x"
       - name: Setup Chomp
         uses: guybedford/chomp-action@v1
         env:
