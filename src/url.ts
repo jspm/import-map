@@ -4,7 +4,7 @@ declare global {
   // @ts-ignore
   var location: any;
   // @ts-ignore
-  var process: any;
+  var process: NodeJS.Process;
 }
 
 export let baseUrl: URL;
