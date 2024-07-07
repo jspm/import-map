@@ -13,6 +13,10 @@ const map = new ImportMap({
       'https://another.com/': {
         './url.js': './scoped-map.js',
       }
+    },
+    integrity: {
+      "./another": 'some-integrity',
+      'https://another.com/x': 'another-integrity'
     }
   }
 });
@@ -28,5 +32,9 @@ deepStrictEqual(map.toJSON(), {
     './': {
       'https://site.com/url.js': 'https://site.com/scoped-map.js',
     }
+  },
+  integrity: {
+    './x': 'another-integrity',
+    'https://site.com/another': 'some-integrity'
   }
 });

@@ -9,16 +9,22 @@ import {
 } from "./url.js";
 import { alphabetize } from "./alphabetize.js";
 
+let crypto;
+
 export interface IImportMap {
   imports?: Record<string, string>;
   scopes?: {
     [scope: string]: Record<string, string>;
   };
+  integrity?: {
+    [url: string]: string
+  }
 }
 
 export class ImportMap implements IImportMap {
   imports: Record<string, string> = Object.create(null);
   scopes: Record<string, Record<string, string>> = Object.create(null);
+  integrity: Record<string, string> = Object.create(null);
 
   /**
    * The absolute URL of the import map, for determining relative resolutions
@@ -97,6 +103,7 @@ export class ImportMap implements IImportMap {
           map.scopes[scope]
         );
     }
+    Object.assign(this.integrity, map.integrity);
     this.rebase();
     return this;
   }
@@ -110,6 +117,7 @@ export class ImportMap implements IImportMap {
     this.scopes = alphabetize(this.scopes);
     for (const scope of Object.keys(this.scopes))
       this.scopes[scope] = alphabetize(this.scopes[scope]);
+    this.integrity = alphabetize(this.integrity);
     return this;
   }
 
@@ -130,6 +138,29 @@ export class ImportMap implements IImportMap {
     }
     return this;
   }
+  /**
+   * @param target URL target
+   * @param integrity Integrity
+   */
+  setIntegrity(target: string, integrity: string) {
+    this.integrity[target] = integrity;
+    const targetRebased = rebase(target, this.mapUrl, this.rootUrl);
+    if (targetRebased !== target && this.integrity[targetRebased])
+      delete this.integrity[targetRebased];
+    if (targetRebased.startsWith('./') && target !== targetRebased.slice(2) && this.integrity[targetRebased.slice(2)])
+      delete this.integrity[targetRebased.slice(2)];
+  }
+  /**
+   * @param target URL target
+   * @param integrity Integrity
+   */
+  getIntegrity(target: string, integrity: string) {
+    const targetResolved = resolve(target, this.mapUrl, this.rootUrl);
+    if (this.integrity[targetResolved]) return this.integrity[targetResolved];
+    const targetRebased = rebase(targetResolved, this.mapUrl, this.rootUrl);
+    if (this.integrity[targetRebased]) return this.integrity[targetRebased];
+    if (this.integrity[targetRebased.slice(2)]) return this.integrity[targetRebased.slice(2)];
+  }
 
   /**
    * Bulk replace URLs in the import map
@@ -143,10 +174,17 @@ export class ImportMap implements IImportMap {
     const replaceSubpaths = url.endsWith("/");
     if (!isURL(url)) throw new Error("URL remapping only supports URLs");
     const newRelPkgUrl = rebase(newUrl, this.mapUrl, this.rootUrl);
-    for (const impt of Object.keys(this.imports)) {
-      const target = this.imports[impt];
-      if ((replaceSubpaths && target.startsWith(url)) || target === url)
-        this.imports[impt] = newRelPkgUrl + target.slice(url.length);
+    if (this.imports[url]) {
+      this.imports[newRelPkgUrl] = this.imports[url];
+      delete this.imports[url];
+    }
+    if (replaceSubpaths) {
+      for (const impt of Object.keys(this.imports)) {
+        const target = this.imports[impt];
+        if (target.startsWith(url)) {
+          this.imports[impt] = newRelPkgUrl + target.slice(url.length);
+        }
+      }
     }
     for (const scope of Object.keys(this.scopes)) {
       const scopeImports = this.scopes[scope];
@@ -161,6 +199,10 @@ export class ImportMap implements IImportMap {
         if ((replaceSubpaths && target.startsWith(url)) || target === url)
           scopeImports[impt] = newRelPkgUrl + target.slice(url.length);
       }
+    }
+    if (this.integrity[url]) {
+      this.integrity[newRelPkgUrl] = this.integrity[url];
+      delete this.integrity[url];
     }
     return this;
   }
@@ -448,6 +490,20 @@ export class ImportMap implements IImportMap {
       }
     }
     if (changedScopeProps) this.scopes = alphabetize(this.scopes);
+    let changedIntegrityProps = false;
+    for (const target of Object.keys(this.integrity)) {
+      const newTarget = rebase(
+        resolve(target, this.mapUrl, this.rootUrl),
+        mapUrl,
+        rootUrl
+      );
+      if (target !== newTarget) {
+        this.integrity[newTarget] = this.integrity[target];
+        delete this.integrity[target];
+        changedIntegrityProps = true;
+      }
+    }
+    if (changedIntegrityProps) this.integrity = alphabetize(this.integrity);
     this.mapUrl = mapUrl;
     this.rootUrl = rootUrl;
     return this;
@@ -533,6 +589,7 @@ export class ImportMap implements IImportMap {
     const obj: any = {};
     if (Object.keys(this.imports).length) obj.imports = this.imports;
     if (Object.keys(this.scopes).length) obj.scopes = this.scopes;
+    if (Object.keys(this.integrity).length) obj.integrity = this.integrity;
     return JSON.parse(JSON.stringify(obj));
   }
 }
