@@ -31,6 +31,9 @@ const map = new ImportMap({
       'https://site.com/': {
         react: 'https://cdn.com/react2.js'
       }
+    },
+    integrity: {
+      'https://cdn.com/react.js': 'sha384-...'
     }
   }
 });
@@ -63,6 +66,9 @@ console.log(JSON.stringify(map.toJSON(), null, 2));
 //     "https://another.com/": {
 //       "react": "./custom-react2.js"
 //     }
+//   },
+//   "integrity": {
+//     "https://cdn.com/react.js": "sha384-..."
 //   }
 // }
 
@@ -80,6 +86,9 @@ console.log(JSON.stringify(map.toJSON(), null, 2));
 //     "https://another.com/": {
 //       "react": "../custom-react2.js"
 //     }
+//   },
+//   "integrity": {
+//     "https://cdn.com/react.js": "sha384-..."
 //   }
 // }
 
@@ -95,6 +104,9 @@ console.log(JSON.stringify(map.toJSON(), null, 2));
 //     "https://another.com/": {
 //       "react": "../custom-react2.js"
 //     }
+//   },
+//   "integrity": {
+//     "https://cdn.com/react.js": "sha384-..."
 //   }
 // }
 
@@ -110,6 +122,9 @@ console.log(JSON.stringify(map.toJSON(), null, 2));
 //     "https://another-site.com/": {
 //       "react": "../custom-react2.js"
 //     }
+//   },
+//   "integrity": {
+//     "https://another.com/react.js": "sha384-..."
 //   }
 // }
 
